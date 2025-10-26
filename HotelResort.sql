@@ -7,7 +7,7 @@ GO
 USE HotelResort;
 GO
 
--- CHEQUEO QUE NO EST蒒 EN LA BDD ANTES DE CREARLAS --
+-- CHEQUEO QUE NO EST脡N EN LA BDD ANTES DE CREARLAS --
 
 IF OBJECT_ID('Clientes', 'U') IS NOT NULL DROP TABLE Clientes;
 IF OBJECT_ID('Habitaciones', 'U') IS NOT NULL DROP TABLE Habitaciones;
@@ -80,7 +80,44 @@ CREATE TABLE Alertas (
 );
 GO
 
--- FUNCI覰 (PRECIO-COSTO) --
+-- PROCEDIMIENTO (INACTIVA HABITACIONES FUERA DE SERVICIO) --
+CREATE OR ALTER PROCEDURE sp_inactivar_habitaciones_fuera_servicio
+AS
+BEGIN
+    DECLARE @id_habitacion INT;
+
+    -- Cursor que recorre todas las habitaciones en "FueraServicio"
+    DECLARE cursor_habitaciones CURSOR FOR
+    SELECT id_habitacion
+    FROM Habitaciones
+    WHERE estado = 'FueraServicio';
+
+    OPEN cursor_habitaciones;
+
+    FETCH NEXT FROM cursor_habitaciones INTO @id_habitacion;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        -- Actualiza el estado a "Inactiva"
+        UPDATE Habitaciones
+        SET estado = 'Inactiva'
+        WHERE id_habitacion = @id_habitacion;
+
+-- Cometo esto por si no quieren que registre una alerta
+        -- Registra una alerta
+        --INSERT INTO Alertas (tipo, descripcion)
+        --VALUES ('Mantenimiento', CONCAT('Habitaci贸n ', @id_habitacion, ' fue inactivada autom谩ticamente.'));
+
+        FETCH NEXT FROM cursor_habitaciones INTO @id_habitacion;
+    END;
+
+    CLOSE cursor_habitaciones;
+    DEALLOCATE cursor_habitaciones;
+END;
+GO
+    
+    
+-- FUNCI脫N (PRECIO-COSTO) --
 CREATE OR ALTER FUNCTION fn_margen_servicio(@id_serv INT)
 RETURNS DECIMAL(10,2)
 AS
@@ -138,12 +175,12 @@ BEGIN
         THROW 50000, 'Cliente inactivo', 1;
     END;
 
-    -- Validar habitaci髇 disponible
+    -- Validar habitaci贸n disponible
     SELECT @estado_habitacion = estado FROM Habitaciones WHERE id_habitacion = @id_habitacion;
     IF @estado_habitacion <> 'Disponible'
     BEGIN
-        INSERT INTO Alertas(tipo, descripcion) VALUES ('Error', CONCAT('Habitaci髇 no disponible: ', @id_habitacion));
-        THROW 50001, 'Habitaci髇 no disponible', 1;
+        INSERT INTO Alertas(tipo, descripcion) VALUES ('Error', CONCAT('Habitaci贸n no disponible: ', @id_habitacion));
+        THROW 50001, 'Habitaci贸n no disponible', 1;
     END;
 
     -- Determinar temporada
@@ -174,4 +211,5 @@ BEGIN
     INSERT INTO DetalleReserva(id_reserva, id_habitacion, subtotal)
     VALUES (@id_reserva, @id_habitacion, @total);
 END;
+
 GO
